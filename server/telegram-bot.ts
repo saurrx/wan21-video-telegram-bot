@@ -11,7 +11,7 @@ const bot = new TelegramBot(token, {
   // Add configurations to handle polling better
   webHook: false, // Explicitly disable webhooks
   testEnvironment: false, // Not a test environment
-  polling_interval: 300, // Poll every 300ms
+  interval: 300, // Poll every 300ms (use interval instead of polling_interval)
   onlyFirstMatch: true, // Stop after first match
 });
 
@@ -187,6 +187,10 @@ bot.on('message', async (msg) => {
         prompt_extend_target_lang: 'en'
       })
     });
+
+    if (!response.ok) {
+      throw new Error(`Failed to submit job: ${response.status}`);
+    }
 
     const result = await response.json();
     const jobId = result.job_id;
