@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wan2.1 Video Generation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], 
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status-container {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .hidden {
+            display: none;
+        }
+        .video-container {
+            margin-top: 20px;
+        }
+        video {
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+        .queue-info {
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Wan2.1 Video Generation</h1>
+    
+    <div class="form-container">
+        <div class="form-group">
+            <label for="prompt">Text Prompt:</label>
+            <textarea id="prompt" placeholder="Enter your video description here...">Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage</textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="size">Video Size:</label>
+            <select id="size">
+                <option value="832*480" selected>832*480</option>
+                <option value="480*832">480*832</option>
+                <option value="624*624">624*624</option>
+                <option value="704*544">704*544</option>
+                <option value="544*704">544*704</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="sample_steps">Sample Steps:</label>
+            <input type="number" id="sample_steps" min="1" max="100" value="50">
+        </div>
+        
+        <div class="form-group">
+            <label for="guide_scale">Guidance Scale:</label>
+            <input type="number" id="guide_scale" min="1" max="20" step="0.5" value="6.0">
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="use_prompt_extend" checked>
+                Use Prompt Extension
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label for="prompt_extend_target_lang">Target Language:</label>
+            <select id="prompt_extend_target_lang">
+                <option value="zh" selected>Chinese (ZH)</option>
+                <option value="en">English (EN)</option>
+            </select>
+        </div>
+        
+        <button id="generate-btn">Generate Video</button>
+    </div>
+    
+    <div id="status-container" class="status-container hidden">
+        <h3>Generation Status</h3>
+        <p id="status-message">Submitting job...</p>
+        <p id="queue-position" class="queue-info"></p>
+        <button id="check-status-btn" class="hidden">Check Status</button>
+    </div>
+    
+    <div id="video-container" class="video-container hidden">
+        <h3>Generated Video</h3>
+        <video id="result-video" controls></video>
+        <p>
+            <a id="download-link" href="#" download="generated_video.mp4">Download Video</a>
+        </p>
+    </div>
+    
+    <script>
+        // Configuration
+        // Automatically determine the API URL based on current window location
+        const API_URL = window.location.protocol + '//' + window.location.host;
+        const POLL_INTERVAL = 10000; // 10 seconds for long-running jobs
+        
+        // Elements
+        const generateBtn = document.getElementById('generate-btn');
+        const promptInput = document.getElementById('prompt');
+        const sizeSelect = document.getElementById('size');
+        const sampleStepsInput = document.getElementById('sample_steps');
+        const guideScaleInput = document.getElementById('guide_scale');
+        const usePromptExtendCheckbox = document.getElementById('use_prompt_extend');
+        const statusContainer = document.getElementById('status-container');
+        const statusMessage = document.getElementById('status-message');
+        const queuePosition = document.getElementById('queue-position');
+        const checkStatusBtn = document.getElementById('check-status-btn');
+        const videoContainer = document.getElementById('video-container');
+        const resultVideo = document.getElementById('result-video');
+        const downloadLink = document.getElementById('download-link');
+        
+        // State
+        let currentJobId = null;
+        let pollingInterval = null;
+        
+        // Submit a job
+        async function submitJob() {
+            // Disable the generate button
+            generateBtn.disabled = true;
+            
+            // Show status container
+            statusContainer.classList.remove('hidden');
+            statusMessage.textContent = 'Submitting job...';
+            
+            // Prepare job data
+            const jobData = {
+                prompt: promptInput.value,
+                size: sizeSelect.value,
+                sample_steps: parseInt(sampleStepsInput.value),
+                guide_scale: parseFloat(guideScaleInput.value),
+                use_prompt_extend: usePromptExtendCheckbox.checked,
+                prompt_extend_target_lang: document.getElementById('prompt_extend_target_lang').value
+            };
+            
+            try {
+                // Submit the job
+                const response = await fetch(`${API_URL}/api/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(jobData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                currentJobId = result.job_id;
+                
+                statusMessage.textContent = `Job submitted! Job ID: ${currentJobId}`;
+                
+                // Start polling for status
+                startPolling();
+                
+            } catch (error) {
+                statusMessage.textContent = `Error submitting job: ${error.message}`;
+                generateBtn.disabled = false;
+            }
+        }
+        
+        // Start polling for job status
+        function startPolling() {
+            checkJobStatus();
+            
+            // Set up interval to check regularly
+            pollingInterval = setInterval(checkJobStatus, POLL_INTERVAL);
+        }
+        
+        // Stop polling
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+        
+        // Check job status
+        async function checkJobStatus() {
+            if (!currentJobId) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/jobs/${currentJobId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const job = await response.json();
+                
+                // Update status display
+                if (job.status === 'queued') {
+                    statusMessage.textContent = 'Job is in queue...';
+                    if (job.queue_position !== undefined) {
+                        queuePosition.textContent = `Queue position: ${job.queue_position}`;
+                        queuePosition.classList.remove('hidden');
+                    }
+                } else if (job.status === 'processing') {
+                    statusMessage.textContent = 'Video is being generated (this will take 6-10 minutes)...';
+                    queuePosition.classList.add('hidden');
+                } else if (job.status === 'completed') {
+                    statusMessage.textContent = 'Video generation completed!';
+                    queuePosition.classList.add('hidden');
+                    stopPolling();
+                    showVideo();
+                } else if (job.status === 'failed') {
+                    statusMessage.textContent = `Generation failed: ${job.error || 'Unknown error'}`;
+                    queuePosition.classList.add('hidden');
+                    stopPolling();
+                    generateBtn.disabled = false;
+                }
+                
+            } catch (error) {
+                statusMessage.textContent = `Error checking status: ${error.message}`;
+            }
+        }
+        
+        // Show the generated video
+        async function showVideo() {
+            // Show video container
+            videoContainer.classList.remove('hidden');
+            
+            // Set video source
+            const videoUrl = `${API_URL}/api/jobs/${currentJobId}/video`;
+            resultVideo.src = videoUrl;
+            downloadLink.href = videoUrl;
+            
+            // Re-enable generate button
+            generateBtn.disabled = false;
+        }
+        
+        // Event listeners
+        generateBtn.addEventListener('click', submitJob);
+        checkStatusBtn.addEventListener('click', checkJobStatus);
+    </script>
+</body>
+</html>
