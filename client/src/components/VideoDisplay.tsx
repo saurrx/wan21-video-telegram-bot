@@ -27,23 +27,23 @@ export default function VideoDisplay({ videoUrl, onReset }: Props) {
               allowFullScreen
             />
           ) : (
-            <>
-              <video 
-                controls 
-                className="w-full"
-                onError={() => setError(true)}
-                crossOrigin="anonymous"
-                playsInline
-              >
-                <source src={videoUrl} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-              {error && (
-                <div className="p-4 text-center">
-                  <p>Unable to play video directly. Please use the download button below.</p>
-                </div>
-              )}
-            </>
+            <video 
+              controls 
+              className="w-full"
+              onError={(e) => {
+                console.error('Video error:', e);
+                setError(true);
+              }}
+              playsInline
+            >
+              <source src={videoUrl} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          )}
+          {error && !isEmbedVideo && (
+            <div className="p-4 text-center bg-red-50">
+              <p>Unable to play video directly. Please try refreshing or use the download button below.</p>
+            </div>
           )}
         </div>
 
