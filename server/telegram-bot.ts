@@ -51,9 +51,13 @@ bot.onText(/\/status/, async (msg) => {
         break;
       case 'completed':
         statusMessage += '✅ Video generation completed! Sending video...';
-        // Send the video
+        // Send the video URL first
+        const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
+        await bot.sendMessage(chatId, `🎥 Video URL: ${videoUrl}\n\nSending the video file now...`);
+
+        // Send the video file
         try {
-          const videoResponse = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/video`);
+          const videoResponse = await fetch(videoUrl);
           if (!videoResponse.ok) {
             throw new Error(`Failed to fetch video: ${videoResponse.status}`);
           }
@@ -65,7 +69,7 @@ bot.onText(/\/status/, async (msg) => {
           userJobs.delete(chatId);
         } catch (videoError) {
           console.error('Error sending video:', videoError);
-          await bot.sendMessage(chatId, '❌ Error sending video. Please try downloading from the web interface.');
+          await bot.sendMessage(chatId, '❌ Error sending video file. Please use the URL above to download your video.');
         }
         break;
       case 'failed':
