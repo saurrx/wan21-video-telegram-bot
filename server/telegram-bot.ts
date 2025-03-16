@@ -23,6 +23,30 @@ const userJobs = new Map<number, string>();
 // Store status check intervals
 const statusCheckers = new Map<string, NodeJS.Timer>();
 
+// Generate progress bar
+function generateProgressBar(percentage: number): string {
+  const length = 20;
+  const filled = Math.floor((percentage / 100) * length);
+  const empty = length - filled;
+  return '▓'.repeat(filled) + '░'.repeat(empty);
+}
+
+// Calculate progress percentage based on status
+function getProgressPercentage(status: string, queuePosition: number | undefined, startTime?: number): number {
+  switch (status) {
+    case 'queued':
+      return queuePosition ? Math.max(5, 20 - (queuePosition * 2)) : 5;
+    case 'processing':
+      if (!startTime) return 25;
+      const elapsed = (Date.now() - startTime) / 1000 / 60; // minutes
+      return Math.min(90, 25 + (elapsed / 10) * 65); // Max 90% until complete
+    case 'completed':
+      return 100;
+    default:
+      return 0;
+  }
+}
+
 // Handle start command
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
@@ -40,19 +64,38 @@ async function checkJobStatus(jobId: string, chatId: number) {
         // Only send queue updates if position changed significantly
         if (job.queue_position !== undefined) {
           const estimatedMinutes = job.queue_position * 8; // ~8 mins per job
+          const progress = getProgressPercentage('queued', job.queue_position);
+          const progressBar = generateProgressBar(progress);
+
           await bot.sendMessage(
             chatId,
-            `🕒 Still in queue (Position: ${job.queue_position})\n⏱ Estimated wait: ${estimatedMinutes} minutes`
+            `🎬 Generation Status: In Queue\n\n` +
+            `${progressBar} ${progress}%\n\n` +
+            `📍 Queue Position: ${job.queue_position}\n` +
+            `⏱ Estimated wait: ${estimatedMinutes} minutes`
           );
         }
         break;
       case 'processing':
-        // Don't spam processing messages
+        const progress = getProgressPercentage('processing', undefined, job.started_at ? new Date(job.started_at).getTime() : undefined);
+        const progressBar = generateProgressBar(progress);
+
+        await bot.sendMessage(
+          chatId,
+          `🎬 Generation Status: Processing\n\n` +
+          `${progressBar} ${progress}%\n\n` +
+          `⏱ Estimated time remaining: ${Math.ceil((90 - progress) / 6.5)} minutes`
+        );
         break;
       case 'completed':
-        // Send the video URL first
+        // Send final progress and video
         const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
-        await bot.sendMessage(chatId, `🎥 Video URL: ${videoUrl}\n\nSending the video file now...`);
+        await bot.sendMessage(
+          chatId,
+          `🎬 Generation Status: Completed!\n\n` +
+          `${generateProgressBar(100)} 100%\n\n` +
+          `🎥 Video URL: ${videoUrl}\n\nSending the video file now...`
+        );
 
         // Send the video file
         try {
@@ -76,7 +119,10 @@ async function checkJobStatus(jobId: string, chatId: number) {
         userJobs.delete(chatId);
         break;
       case 'failed':
-        await bot.sendMessage(chatId, '❌ Video generation failed. Please try again.');
+        await bot.sendMessage(
+          chatId,
+          `❌ Generation Status: Failed\n\n${generateProgressBar(0)} 0%\n\nPlease try again.`
+        );
         // Cleanup
         clearInterval(statusCheckers.get(jobId));
         statusCheckers.delete(jobId);
@@ -134,9 +180,13 @@ bot.on('message', async (msg) => {
     const interval = setInterval(() => checkJobStatus(jobId, chatId), 120000); // 2 minutes
     statusCheckers.set(jobId, interval);
 
+    // Show initial progress bar
     await bot.sendMessage(
       chatId,
-      '✅ Video generation started!\n\nI will notify you when your video is ready.\nYou can also use /status to check the progress anytime.'
+      `✅ Video generation started!\n\n` +
+      `${generateProgressBar(5)} 5%\n\n` +
+      `I will send you progress updates every 2 minutes.\n` +
+      `You can also use /status to check progress anytime.`
     );
   } catch (error) {
     console.error('Error submitting job:', error);
