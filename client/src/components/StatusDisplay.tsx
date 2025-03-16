@@ -12,13 +12,13 @@ interface Props {
 export default function StatusDisplay({ jobId, onComplete, onVideoReady }: Props) {
   const [status, setStatus] = useState<string>("queued");
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
-  
+
   useEffect(() => {
     const checkStatus = async () => {
       try {
         const response = await fetch(`/api/jobs/${jobId}`);
         const data = await response.json();
-        
+
         setStatus(data.status);
         if (data.queue_position !== undefined) {
           setQueuePosition(data.queue_position);
@@ -26,7 +26,8 @@ export default function StatusDisplay({ jobId, onComplete, onVideoReady }: Props
 
         if (data.status === "completed") {
           onComplete();
-          onVideoReady(`/api/jobs/${jobId}/video`);
+          // Use the direct API URL for the video
+          onVideoReady(`http://provider.gpufarm.xyz:30507/api/jobs/${jobId}/video`);
         } else if (data.status !== "failed") {
           setTimeout(checkStatus, 10000);
         }

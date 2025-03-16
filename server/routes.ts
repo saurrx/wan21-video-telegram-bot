@@ -50,14 +50,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Video retrieval endpoint
   app.get("/api/jobs/:jobId/video", async (req, res) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/jobs/${req.params.jobId}/video`);
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      // Forward the video stream
-      response.body?.pipe(res);
+      // Redirect to the actual video URL instead of proxying
+      res.redirect(`${API_BASE_URL}/api/jobs/${req.params.jobId}/video`);
     } catch (error) {
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "Failed to fetch video" 
