@@ -27,7 +27,9 @@ export default function VideoGenerationForm({ onJobCreated, disabled }: Props) {
       prompt: formData.get("prompt"),
       size: formData.get("size"),
       sample_steps: Number(formData.get("sample_steps")),
+      sample_shift: Number(formData.get("sample_shift")),
       guide_scale: Number(formData.get("guide_scale")),
+      seed: Number(formData.get("seed")),
       use_prompt_extend: formData.get("use_prompt_extend") === "on",
       prompt_extend_target_lang: formData.get("prompt_extend_target_lang"),
     };
@@ -93,6 +95,20 @@ export default function VideoGenerationForm({ onJobCreated, disabled }: Props) {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="sample_shift">Sample Shift</Label>
+            <Input
+              type="number"
+              id="sample_shift"
+              name="sample_shift"
+              defaultValue={5.0}
+              min={0}
+              max={10}
+              step={0.1}
+              className="border-2 border-black"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="guide_scale">Guidance Scale</Label>
             <Input
               type="number"
@@ -102,6 +118,17 @@ export default function VideoGenerationForm({ onJobCreated, disabled }: Props) {
               min={1}
               max={20}
               step={0.5}
+              className="border-2 border-black"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="seed">Seed</Label>
+            <Input
+              type="number"
+              id="seed"
+              name="seed"
+              defaultValue={-1}
               className="border-2 border-black"
             />
           </div>
