@@ -1,0 +1,151 @@
+Directory Structure:
+
+└── ./
+    ├── .well-known
+    │   └── farcaster.json
+    ├── index.html
+    └── README.md
+
+
+
+---
+File: /.well-known/farcaster.json
+---
+
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "frame": {
+    "name": "dTech - Farcaster docs",
+    "version": "0.0.1",
+    "iconUrl": "https://dtech.vision/icon.png",
+    "homeUrl": "https://dtech.vision/farcaster",
+    "splashImageUrl": "https://dtech.vision/splash.png",
+    "splashBackgroundColor": "#f7f7f7",
+    "webhookUrl": "https://dtech.vision/webhookurl"
+  }
+}
+
+
+
+---
+File: /index.html
+---
+
+<html>
+    <head>
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Simplest Frame by dTech" />
+        <meta property="og:url" content="https://dtech.vision/simpleframe/" />
+        <meta
+            property="og:image"
+            content="https://dtech.vision/simpleframe/opengraph.png"
+        />
+        <meta
+            property="og:description"
+            content="The simplest Farcaster Frame one can code"
+        />
+        <meta
+            property="fc:frame"
+            content='{
+                "version": "next",
+                "imageUrl": "https://dtech.vision/frame.png",
+                "button": {
+                    "title": "THE Farcaster product studio",
+                    "action": {
+                        "type": "launch_frame",
+                        "name": "Learn Farcaster",
+                        "url": "https://dtech.vision/farcaster/",
+                        "splashImageUrl": "https://samuelhuber.de/splash.png",
+                        "splashBackgroundColor": "#f7f7f7"
+                    }
+                }
+            }'
+        />
+    </head>
+
+    <body>
+        <script src="https://cdn.jsdelivr.net/npm/@farcaster/frame-sdk/dist/index.min.js"></script>
+        <script>
+            frame.sdk.actions.ready();
+        </script>
+        <div
+            style="
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 50px auto;
+                padding: 30px;
+                background-color: #f8f9fa;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                text-align: center;
+            "
+        >
+            <img
+                src="https://dtech.vision/favicon.svg"
+                width="128"
+                height="128"
+                alt="dTech Logo"
+            />
+            <span
+                style="
+                    font-size: 24px;
+                    color: #2c3e50;
+                    display: block;
+                    margin-bottom: 20px;
+                "
+                >Hello from the dTech team. This is easy right?</span
+            >
+            Learn more about Frames
+            <a
+                href="https://dtech.vision/farcaster"
+                style="
+                    color: #3498db;
+                    text-decoration: none;
+                    font-weight: bold;
+                    border-bottom: 2px solid #3498db;
+                    padding-bottom: 2px;
+                    transition: all 0.3s ease;
+                "
+            >
+                here
+            </a>
+        </div>
+    </body>
+</html>
+
+
+
+---
+File: /README.md
+---
+
+# The simplest Farcaster Frame
+
+Includes
+
+- A static HTML page with the least code possible to render a webpage in a Farcaster Frame
+- Frame metadata setup in `.well-known/farcaster.json`
+- OpenGraph Tags
+
+## Getting Started
+
+Edit [index.html](./index.html) to change the webpage rendered in the Frame.
+
+Edit [.well-known/farcaster.json](./.well-known/farcaster.json) to adjust the app name and metadata.
+
+Edit the images to adjust the splash screen and icon, etc.
+
+## Deploy
+
+- Copy the content of this repository to the webroot. It's static HTML
+
+## Learn more
+
+To learn more about Farcaster and Frames visit our documentation [at dtech.vision](https://dtech.vision/farcaster)
+
+To work with the premier Farcaster product studio visit [our webpage](https://dtech.vision) or [reach out](https://warpcast.com/samuellhuber)
+
