@@ -1,9 +1,15 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { apiRequest } from '../client/src/lib/queryClient';
 
 // Initialize bot with token
 const token = process.env.TELEGRAM_BOT_TOKEN;
+if (!token) {
+  throw new Error('TELEGRAM_BOT_TOKEN is not set in environment variables');
+}
+
 const bot = new TelegramBot(token, { polling: true });
+
+// Base URL for the API
+const API_BASE_URL = 'http://provider.gpufarm.xyz:30507';
 
 // Store user's active jobs
 const userJobs = new Map<number, string>();
@@ -18,14 +24,14 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/status/, async (msg) => {
   const chatId = msg.chat.id;
   const jobId = userJobs.get(chatId);
-  
+
   if (!jobId) {
     bot.sendMessage(chatId, 'You don\'t have any active video generation jobs.');
     return;
   }
 
   try {
-    const response = await fetch(`/api/jobs/${jobId}`);
+    const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
     const job = await response.json();
 
     let statusMessage = 'Video Generation Status:\n';
@@ -39,7 +45,7 @@ bot.onText(/\/status/, async (msg) => {
       case 'completed':
         statusMessage += '✅ Video generation completed! Sending video...';
         // Send the video
-        await bot.sendVideo(chatId, `/api/jobs/${jobId}/video`);
+        await bot.sendVideo(chatId, `${API_BASE_URL}/api/jobs/${jobId}/video`);
         userJobs.delete(chatId);
         break;
       case 'failed':
@@ -47,7 +53,7 @@ bot.onText(/\/status/, async (msg) => {
         userJobs.delete(chatId);
         break;
     }
-    
+
     await bot.sendMessage(chatId, statusMessage);
   } catch (error) {
     console.error('Error checking job status:', error);
@@ -58,7 +64,7 @@ bot.onText(/\/status/, async (msg) => {
 // Handle text messages (prompts)
 bot.on('message', async (msg) => {
   if (msg.text?.startsWith('/')) return; // Ignore commands
-  
+
   const chatId = msg.chat.id;
   const prompt = msg.text;
 
@@ -66,8 +72,8 @@ bot.on('message', async (msg) => {
 
   try {
     await bot.sendMessage(chatId, '🎬 Submitting your video generation request...');
-    
-    const response = await fetch('/api/generate', {
+
+    const response = await fetch(`${API_BASE_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -82,9 +88,9 @@ bot.on('message', async (msg) => {
 
     const result = await response.json();
     userJobs.set(chatId, result.job_id);
-    
+
     await bot.sendMessage(
-      chatId, 
+      chatId,
       '✅ Video generation started!\n\nUse /status to check the progress.\nThis usually takes 6-10 minutes.'
     );
   } catch (error) {
