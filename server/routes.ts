@@ -47,11 +47,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Video retrieval endpoint
+  // Video retrieval endpoint - now proxying the video stream
   app.get("/api/jobs/:jobId/video", async (req, res) => {
     try {
-      // Redirect to the actual video URL instead of proxying
-      res.redirect(`${API_BASE_URL}/api/jobs/${req.params.jobId}/video`);
+      const response = await fetch(`${API_BASE_URL}/api/jobs/${req.params.jobId}/video`);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      // Set appropriate headers
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Content-Disposition', 'inline');
+
+      // Pipe the video stream through our server
+      response.body?.pipe(res);
     } catch (error) {
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "Failed to fetch video" 

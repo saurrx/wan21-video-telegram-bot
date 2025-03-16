@@ -26,8 +26,8 @@ export default function StatusDisplay({ jobId, onComplete, onVideoReady }: Props
 
         if (data.status === "completed") {
           onComplete();
-          // Use the direct API URL for the video
-          onVideoReady(`http://provider.gpufarm.xyz:30507/api/jobs/${jobId}/video`);
+          // Use our proxied endpoint instead of direct API URL
+          onVideoReady(`/api/jobs/${jobId}/video`);
         } else if (data.status !== "failed") {
           setTimeout(checkStatus, 10000);
         }

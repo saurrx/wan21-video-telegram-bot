@@ -7,7 +7,7 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(
-    "http://provider.gpufarm.xyz:30507/api/jobs/8aaa74bf-eb50-44db-a577-650ec68f15fe/video"
+    "/api/jobs/8aaa74bf-eb50-44db-a577-650ec68f15fe/video"
   );
 
   return (
