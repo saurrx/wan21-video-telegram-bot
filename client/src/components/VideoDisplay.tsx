@@ -10,6 +10,7 @@ interface Props {
 
 export default function VideoDisplay({ videoUrl, onReset }: Props) {
   const [error, setError] = useState(false);
+  const isEmbedVideo = videoUrl.includes('embed.api.video');
 
   return (
     <Card className="p-6 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
@@ -18,20 +19,31 @@ export default function VideoDisplay({ videoUrl, onReset }: Props) {
         <h3 className="text-xl font-bold">Generated Video</h3>
 
         <div className="rounded-lg overflow-hidden border-2 border-black">
-          <video 
-            controls 
-            className="w-full"
-            onError={() => setError(true)}
-            crossOrigin="anonymous"
-            playsInline
-          >
-            <source src={videoUrl} type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-          {error && (
-            <div className="p-4 text-center">
-              <p>Unable to play video directly. Please use the download button below.</p>
-            </div>
+          {isEmbedVideo ? (
+            <iframe
+              src={videoUrl}
+              className="w-full aspect-video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <>
+              <video 
+                controls 
+                className="w-full"
+                onError={() => setError(true)}
+                crossOrigin="anonymous"
+                playsInline
+              >
+                <source src={videoUrl} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              {error && (
+                <div className="p-4 text-center">
+                  <p>Unable to play video directly. Please use the download button below.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 

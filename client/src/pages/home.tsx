@@ -7,7 +7,7 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(
-    "/api/jobs/8aaa74bf-eb50-44db-a577-650ec68f15fe/video"
+    "https://embed.api.video/vod/vi2qm7oxLDZYOnuOwkHKk3Fe"
   );
 
   return (
