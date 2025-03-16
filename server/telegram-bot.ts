@@ -44,7 +44,10 @@ bot.onText(/\/status/, async (msg) => {
     let statusMessage = 'Video Generation Status:\n';
     switch (job.status) {
       case 'queued':
-        statusMessage += `🕒 In Queue (Position: ${job.queue_position || 'unknown'})`;
+        statusMessage += `🕒 In Queue (Position: ${job.queue_position || 'unknown'})\n`;
+        // Add estimated wait time based on queue position
+        const estimatedMinutes = job.queue_position ? job.queue_position * 8 : 10; // ~8 mins per job
+        statusMessage += `⏱ Estimated wait time: ${estimatedMinutes} minutes`;
         break;
       case 'processing':
         statusMessage += '🎬 Generating your video (this takes 6-10 minutes)...';
@@ -80,7 +83,7 @@ bot.onText(/\/status/, async (msg) => {
 
     await bot.sendMessage(chatId, statusMessage);
   } catch (error) {
-    console.error('Error checking job status:', error);
+    console.error('Error checking status:', error);
     await bot.sendMessage(chatId, '❌ Error checking status. Please try again later.');
   }
 });
