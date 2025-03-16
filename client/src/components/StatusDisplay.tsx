@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface Props {
   jobId: string;
@@ -9,9 +9,41 @@ interface Props {
   onVideoReady: (url: string) => void;
 }
 
+type JobStatus = "queued" | "processing" | "completed" | "failed";
+
 export default function StatusDisplay({ jobId, onComplete, onVideoReady }: Props) {
-  const [status, setStatus] = useState<string>("queued");
+  const [status, setStatus] = useState<JobStatus>("queued");
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<string>("6-10 minutes");
+
+  // Calculate progress percentage based on status and time elapsed
+  const getProgress = () => {
+    switch (status) {
+      case "queued":
+        return 10;
+      case "processing":
+        if (!startTime) return 25;
+        const elapsed = (Date.now() - startTime.getTime()) / 1000 / 60; // minutes
+        return Math.min(90, 25 + (elapsed / 10) * 65); // Max 90% until complete
+      case "completed":
+        return 100;
+      case "failed":
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
+  // Update estimated time based on queue position and status
+  useEffect(() => {
+    if (status === "queued" && queuePosition !== null) {
+      setEstimatedTime(`${queuePosition * 2}-${queuePosition * 3} minutes`);
+    } else if (status === "processing" && !startTime) {
+      setStartTime(new Date());
+      setEstimatedTime("6-10 minutes");
+    }
+  }, [status, queuePosition]);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -26,7 +58,6 @@ export default function StatusDisplay({ jobId, onComplete, onVideoReady }: Props
 
         if (data.status === "completed") {
           onComplete();
-          // Use our proxied endpoint instead of direct API URL
           onVideoReady(`/api/jobs/${jobId}/video`);
         } else if (data.status !== "failed") {
           setTimeout(checkStatus, 10000);
@@ -39,27 +70,71 @@ export default function StatusDisplay({ jobId, onComplete, onVideoReady }: Props
     checkStatus();
   }, [jobId]);
 
+  const getStatusIcon = () => {
+    switch (status) {
+      case "queued":
+      case "processing":
+        return <Loader2 className="h-6 w-6 animate-spin" />;
+      case "completed":
+        return <CheckCircle2 className="h-6 w-6 text-green-500" />;
+      case "failed":
+        return <AlertCircle className="h-6 w-6 text-red-500" />;
+    }
+  };
+
+  const getStatusMessage = () => {
+    switch (status) {
+      case "queued":
+        return (
+          <>
+            Waiting in queue
+            {queuePosition !== null && (
+              <span className="font-semibold">
+                {" "}
+                (Position: {queuePosition})
+              </span>
+            )}
+            <div className="text-sm text-muted-foreground mt-1">
+              Estimated wait: {estimatedTime}
+            </div>
+          </>
+        );
+      case "processing":
+        return (
+          <>
+            Generating your video
+            <div className="text-sm text-muted-foreground mt-1">
+              Estimated time remaining: {estimatedTime}
+            </div>
+          </>
+        );
+      case "completed":
+        return "Video generation completed!";
+      case "failed":
+        return "Generation failed. Please try again.";
+    }
+  };
+
   return (
     <Card className="p-6 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
       animate-in slide-in-from-bottom duration-500">
       <div className="space-y-4">
-        <div className="flex items-center space-x-3">
-          <Loader2 className="h-6 w-6 animate-spin" />
+        <div className="flex items-center gap-3">
+          {getStatusIcon()}
           <h3 className="text-xl font-bold">Generation Status</h3>
         </div>
 
-        <Progress value={status === "processing" ? 50 : 25} className="h-2 border-2 border-black" />
+        <div className="space-y-2">
+          <Progress 
+            value={getProgress()} 
+            className="h-2 border-2 border-black"
+          />
+          <div className="text-right text-sm text-muted-foreground">
+            {getProgress().toFixed(0)}%
+          </div>
+        </div>
 
-        <p className="text-lg">
-          {status === "queued" && (
-            <>
-              Job is in queue
-              {queuePosition !== null && ` (Position: ${queuePosition})`}
-            </>
-          )}
-          {status === "processing" && "Video is being generated (this will take 6-10 minutes)..."}
-          {status === "failed" && "Generation failed. Please try again."}
-        </p>
+        <div className="text-lg">{getStatusMessage()}</div>
       </div>
     </Card>
   );
