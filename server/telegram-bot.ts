@@ -20,6 +20,8 @@ const API_BASE_URL = 'http://provider.gpufarm.xyz:30507';
 
 // Store user's active jobs
 const userJobs = new Map<number, string>();
+// Store status check intervals
+const statusCheckers = new Map<string, NodeJS.Timer>();
 
 // Handle start command
 bot.onText(/\/start/, (msg) => {
@@ -27,33 +29,27 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(chatId, 'Welcome to Wan2.1 Video Generation Bot!\n\nSend me a text prompt to generate a video.\nUse /status to check your video generation progress.');
 });
 
-// Handle status command
-bot.onText(/\/status/, async (msg) => {
-  const chatId = msg.chat.id;
-  const jobId = userJobs.get(chatId);
-
-  if (!jobId) {
-    bot.sendMessage(chatId, 'You don\'t have any active video generation jobs.');
-    return;
-  }
-
+// Function to check job status
+async function checkJobStatus(jobId: string, chatId: number) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
     const job = await response.json();
 
-    let statusMessage = 'Video Generation Status:\n';
     switch (job.status) {
       case 'queued':
-        statusMessage += `🕒 In Queue (Position: ${job.queue_position || 'unknown'})\n`;
-        // Add estimated wait time based on queue position
-        const estimatedMinutes = job.queue_position ? job.queue_position * 8 : 10; // ~8 mins per job
-        statusMessage += `⏱ Estimated wait time: ${estimatedMinutes} minutes`;
+        // Only send queue updates if position changed significantly
+        if (job.queue_position !== undefined) {
+          const estimatedMinutes = job.queue_position * 8; // ~8 mins per job
+          await bot.sendMessage(
+            chatId,
+            `🕒 Still in queue (Position: ${job.queue_position})\n⏱ Estimated wait: ${estimatedMinutes} minutes`
+          );
+        }
         break;
       case 'processing':
-        statusMessage += '🎬 Generating your video (this takes 6-10 minutes)...';
+        // Don't spam processing messages
         break;
       case 'completed':
-        statusMessage += '✅ Video generation completed! Sending video...';
         // Send the video URL first
         const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
         await bot.sendMessage(chatId, `🎥 Video URL: ${videoUrl}\n\nSending the video file now...`);
@@ -69,23 +65,40 @@ bot.onText(/\/status/, async (msg) => {
           await bot.sendVideo(chatId, Buffer.from(buffer), {
             caption: 'Here is your generated video!'
           });
-          userJobs.delete(chatId);
         } catch (videoError) {
           console.error('Error sending video:', videoError);
           await bot.sendMessage(chatId, '❌ Error sending video file. Please use the URL above to download your video.');
         }
+
+        // Cleanup
+        clearInterval(statusCheckers.get(jobId));
+        statusCheckers.delete(jobId);
+        userJobs.delete(chatId);
         break;
       case 'failed':
-        statusMessage += '❌ Video generation failed. Please try again.';
+        await bot.sendMessage(chatId, '❌ Video generation failed. Please try again.');
+        // Cleanup
+        clearInterval(statusCheckers.get(jobId));
+        statusCheckers.delete(jobId);
         userJobs.delete(chatId);
         break;
     }
-
-    await bot.sendMessage(chatId, statusMessage);
   } catch (error) {
     console.error('Error checking status:', error);
-    await bot.sendMessage(chatId, '❌ Error checking status. Please try again later.');
   }
+}
+
+// Handle status command (manual check)
+bot.onText(/\/status/, async (msg) => {
+  const chatId = msg.chat.id;
+  const jobId = userJobs.get(chatId);
+
+  if (!jobId) {
+    bot.sendMessage(chatId, 'You don\'t have any active video generation jobs.');
+    return;
+  }
+
+  await checkJobStatus(jobId, chatId);
 });
 
 // Handle text messages (prompts)
@@ -114,11 +127,16 @@ bot.on('message', async (msg) => {
     });
 
     const result = await response.json();
-    userJobs.set(chatId, result.job_id);
+    const jobId = result.job_id;
+    userJobs.set(chatId, jobId);
+
+    // Set up automatic status checking every 2 minutes
+    const interval = setInterval(() => checkJobStatus(jobId, chatId), 120000); // 2 minutes
+    statusCheckers.set(jobId, interval);
 
     await bot.sendMessage(
       chatId,
-      '✅ Video generation started!\n\nUse /status to check the progress.\nThis usually takes 6-10 minutes.'
+      '✅ Video generation started!\n\nI will notify you when your video is ready.\nYou can also use /status to check the progress anytime.'
     );
   } catch (error) {
     console.error('Error submitting job:', error);
@@ -137,6 +155,10 @@ bot.on('polling_error', (error) => {
 
 // Cleanup on process exit
 process.on('SIGINT', () => {
+  // Clear all intervals
+  for (const interval of statusCheckers.values()) {
+    clearInterval(interval);
+  }
   bot.stopPolling();
   process.exit(0);
 });
