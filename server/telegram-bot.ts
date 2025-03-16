@@ -6,7 +6,14 @@ if (!token) {
   throw new Error('TELEGRAM_BOT_TOKEN is not set in environment variables');
 }
 
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, { 
+  polling: true,
+  // Add configurations to handle polling better
+  webHook: false, // Explicitly disable webhooks
+  testEnvironment: false, // Not a test environment
+  polling_interval: 300, // Poll every 300ms
+  onlyFirstMatch: true, // Stop after first match
+});
 
 // Base URL for the API
 const API_BASE_URL = 'http://provider.gpufarm.xyz:30507';
@@ -100,6 +107,18 @@ bot.on('message', async (msg) => {
       '❌ Error submitting video generation request. Please try again later.'
     );
   }
+});
+
+// Handle polling errors
+bot.on('polling_error', (error) => {
+  // Log the error but don't crash
+  console.error('Telegram bot polling error:', error);
+});
+
+// Cleanup on process exit
+process.on('SIGINT', () => {
+  bot.stopPolling();
+  process.exit(0);
 });
 
 export default bot;
