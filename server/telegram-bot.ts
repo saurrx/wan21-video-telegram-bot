@@ -57,6 +57,9 @@ bot.onText(/\/start/, (msg) => {
 async function checkJobStatus(jobId: string, chatId: number) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch job status: ${response.status}`);
+    }
     const job = await response.json();
 
     switch (job.status) {
@@ -90,6 +93,8 @@ async function checkJobStatus(jobId: string, chatId: number) {
       case 'completed':
         // Send final progress and video
         const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
+        console.log('Video URL:', videoUrl); // Debug log
+
         await bot.sendMessage(
           chatId,
           `🎬 Generation Status: Completed!\n\n` +
@@ -99,15 +104,21 @@ async function checkJobStatus(jobId: string, chatId: number) {
 
         // Send the video file
         try {
+          console.log('Fetching video from:', videoUrl); // Debug log
           const videoResponse = await fetch(videoUrl);
           if (!videoResponse.ok) {
             throw new Error(`Failed to fetch video: ${videoResponse.status}`);
           }
 
+          console.log('Video response received, converting to buffer...'); // Debug log
           const buffer = await videoResponse.arrayBuffer();
+          console.log('Sending video to Telegram...'); // Debug log
+
           await bot.sendVideo(chatId, Buffer.from(buffer), {
             caption: 'Here is your generated video!'
           });
+
+          console.log('Video sent successfully!'); // Debug log
         } catch (videoError) {
           console.error('Error sending video:', videoError);
           await bot.sendMessage(chatId, '❌ Error sending video file. Please use the URL above to download your video.');
@@ -131,6 +142,11 @@ async function checkJobStatus(jobId: string, chatId: number) {
     }
   } catch (error) {
     console.error('Error checking status:', error);
+    // Don't send error message to user for every failed status check
+    // Only send if it's a critical error
+    if (error instanceof Error && error.message.includes('Failed to fetch')) {
+      await bot.sendMessage(chatId, '❌ Error checking status. Please try again later.');
+    }
   }
 }
 
