@@ -80,6 +80,47 @@ function formatTimeRemaining(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
+// Function to send video
+async function sendVideo(chatId: number, jobId: string): Promise<void> {
+  const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
+
+  try {
+    // First announce that we're sending the video
+    await bot.sendMessage(
+      chatId,
+      `🎬 Generation Status: Completed!\n\n` +
+      `${generateProgressBar(100)} 100%\n\n` +
+      `🎥 Preparing to send your video...`
+    );
+
+    // Fetch the video
+    const response = await fetch(videoUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Get the video buffer
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    // Send the video file
+    await bot.sendVideo(chatId, buffer, {
+      caption: '✨ Here is your generated video!',
+      parse_mode: 'HTML'
+    });
+
+    await bot.sendMessage(
+      chatId,
+      `📥 You can also download the video directly from:\n${videoUrl}`
+    );
+  } catch (error) {
+    console.error('Error sending video:', error);
+    await bot.sendMessage(
+      chatId,
+      `❌ Failed to send video in chat.\n\nYou can download it directly from:\n${videoUrl}`
+    );
+  }
+}
+
 // Function to check job status
 async function checkJobStatus(jobId: string, chatId: number) {
   try {
@@ -117,40 +158,16 @@ async function checkJobStatus(jobId: string, chatId: number) {
         break;
 
       case 'completed':
-        // Stop progress animation and show 100%
+        // Stop progress animation
         stopProgressAnimation(jobId);
 
-        const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
+        // Send the video
+        await sendVideo(chatId, jobId);
 
-        await bot.sendMessage(
-          chatId,
-          `🎬 Generation Status: Completed!\n\n` +
-          `${generateProgressBar(100)} 100%\n\n` +
-          `🎥 Video URL: ${videoUrl}\n\nSending the video file now...`
-        );
-
-        try {
-          const videoResponse = await fetch(videoUrl);
-          if (!videoResponse.ok) {
-            throw new Error(`Failed to fetch video: ${videoResponse.status}`);
-          }
-
-          const buffer = await videoResponse.arrayBuffer();
-          await bot.sendVideo(chatId, Buffer.from(buffer), {
-            caption: 'Here is your generated video!'
-          });
-        } catch (error) {
-          console.error('Error sending video:', error);
-          await bot.sendMessage(
-            chatId,
-            `❌ Error sending video file.\n\nYou can download your video using this link:\n${videoUrl}`
-          );
-        } finally {
-          // Cleanup
-          clearInterval(statusCheckers.get(jobId));
-          statusCheckers.delete(jobId);
-          userJobs.delete(chatId);
-        }
+        // Cleanup
+        clearInterval(statusCheckers.get(jobId));
+        statusCheckers.delete(jobId);
+        userJobs.delete(chatId);
         break;
 
       case 'failed':
