@@ -80,48 +80,29 @@ function formatTimeRemaining(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-// Function to send video
-async function sendVideo(chatId: number, jobId: string): Promise<void> {
-  const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
+// API Functions
+async function submitVideoGenerationJob(prompt: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      size: '832*480',
+      sample_steps: 50,
+      guide_scale: 6.0,
+      use_prompt_extend: true,
+      prompt_extend_target_lang: 'en'
+    })
+  });
 
-  try {
-    // First announce that we're sending the video
-    await bot.sendMessage(
-      chatId,
-      `🎬 Generation Status: Completed!\n\n` +
-      `${generateProgressBar(100)} 100%\n\n` +
-      `🎥 Preparing to send your video...`
-    );
-
-    // Fetch the video
-    const response = await fetch(videoUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    // Get the video buffer
-    const buffer = Buffer.from(await response.arrayBuffer());
-
-    // Send the video file
-    await bot.sendVideo(chatId, buffer, {
-      caption: '✨ Here is your generated video!',
-      parse_mode: 'HTML'
-    });
-
-    await bot.sendMessage(
-      chatId,
-      `📥 You can also download the video directly from:\n${videoUrl}`
-    );
-  } catch (error) {
-    console.error('Error sending video:', error);
-    await bot.sendMessage(
-      chatId,
-      `❌ Failed to send video in chat.\n\nYou can download it directly from:\n${videoUrl}`
-    );
+  if (!response.ok) {
+    throw new Error(`Failed to submit job: ${response.status}`);
   }
+
+  const result = await response.json();
+  return result.job_id;
 }
 
-// Function to check job status
 async function checkJobStatus(jobId: string, chatId: number) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
@@ -161,8 +142,37 @@ async function checkJobStatus(jobId: string, chatId: number) {
         // Stop progress animation
         stopProgressAnimation(jobId);
 
-        // Send the video
-        await sendVideo(chatId, jobId);
+        // First send completed status
+        await bot.sendMessage(
+          chatId,
+          `🎬 Generation Status: Completed!\n\n` +
+          `${generateProgressBar(100)} 100%\n\n` +
+          `🎥 Preparing to send your video...`
+        );
+
+        // Fetch and send video
+        try {
+          const videoResponse = await fetch(`${API_BASE_URL}/api/jobs/${jobId}/video`);
+          if (!videoResponse.ok) {
+            throw new Error(`Failed to fetch video: ${videoResponse.status}`);
+          }
+
+          const buffer = Buffer.from(await videoResponse.arrayBuffer());
+          await bot.sendVideo(chatId, buffer, {
+            caption: '✨ Here is your generated video!'
+          });
+
+          await bot.sendMessage(
+            chatId,
+            `📥 You can also download the video from:\n${API_BASE_URL}/api/jobs/${jobId}/video`
+          );
+        } catch (error) {
+          console.error('Error sending video:', error);
+          await bot.sendMessage(
+            chatId,
+            `❌ Error sending video in chat.\n\nYou can download it from:\n${API_BASE_URL}/api/jobs/${jobId}/video`
+          );
+        }
 
         // Cleanup
         clearInterval(statusCheckers.get(jobId));
@@ -211,25 +221,8 @@ bot.onText(/\/generate(?:\s+(.+))?/, async (msg, match) => {
   try {
     await bot.sendMessage(chatId, '🎬 Submitting your video generation request...');
 
-    const response = await fetch(`${API_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        size: '832*480',
-        sample_steps: 50,
-        guide_scale: 6.0,
-        use_prompt_extend: true,
-        prompt_extend_target_lang: 'en'
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to submit job: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const jobId = result.job_id;
+    // Submit job to API
+    const jobId = await submitVideoGenerationJob(prompt);
     userJobs.set(chatId, jobId);
 
     // Start progress animation from 5%
