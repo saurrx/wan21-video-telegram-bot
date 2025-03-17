@@ -77,7 +77,7 @@ function startProgressAnimation(jobId: string, chatId: number, initialProgress: 
       progress.currentProgress = Math.min(99, progress.currentProgress + 1);
 
       // Only send update every 5% to avoid spam
-      if (!progress.lastMessage || Date.now() - progress.lastMessage >= 5000) {
+      if (!progress.lastMessage || Date.now() - progress.lastMessage >= 20000) { // Increased to 20 seconds (5% * 4 seconds)
         const progressBar = generateProgressBar(progress.currentProgress);
         await bot.sendMessage(
           chatId,
@@ -87,7 +87,7 @@ function startProgressAnimation(jobId: string, chatId: number, initialProgress: 
         );
         progress.lastMessage = Date.now();
       }
-    }, 1000), // Update every second
+    }, 4000), // Update every 4 seconds instead of 1 second
     currentProgress: initialProgress,
     lastMessage: Date.now()
   };
