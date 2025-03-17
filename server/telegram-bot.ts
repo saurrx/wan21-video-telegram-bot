@@ -8,7 +8,8 @@ const statusCheckers = new Map<string, NodeJS.Timer>();
 const progressAnimations = new Map<string, { 
   interval: NodeJS.Timer;
   currentProgress: number;
-  lastMessage?: number;
+  startTime: number;
+  waitTimeSeconds: number;
 }>();
 
 // Initialize bot with token
@@ -47,10 +48,17 @@ function startProgressAnimation(jobId: string, chatId: number, initialProgress: 
     interval: setInterval(() => {
       const progress = progressAnimations.get(jobId);
       if (!progress) return;
+
+      // Update wait time (decrease by 1 second)
+      const elapsedSeconds = Math.floor((Date.now() - progress.startTime) / 1000);
+      progress.waitTimeSeconds = Math.max(0, 480 - elapsedSeconds); // Start from 8 minutes (480 seconds)
+
+      // Increment progress by 1%
       progress.currentProgress = Math.min(99, progress.currentProgress + 1);
     }, 3000), // Update every 3 seconds
     currentProgress: initialProgress,
-    lastMessage: Date.now()
+    startTime: Date.now(),
+    waitTimeSeconds: 480 // Start with 8 minutes
   };
 
   progressAnimations.set(jobId, animation);
@@ -65,6 +73,13 @@ function stopProgressAnimation(jobId: string) {
   }
 }
 
+// Function to format time remaining
+function formatTimeRemaining(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
 // Function to check job status
 async function checkJobStatus(jobId: string, chatId: number) {
   try {
@@ -74,19 +89,20 @@ async function checkJobStatus(jobId: string, chatId: number) {
     }
     const job = await response.json();
 
-    // Get current progress from animation if exists
-    const currentProgress = progressAnimations.get(jobId)?.currentProgress || 0;
+    // Get current progress and wait time from animation
+    const animation = progressAnimations.get(jobId);
+    const currentProgress = animation?.currentProgress || 0;
+    const waitTimeSeconds = animation?.waitTimeSeconds || 0;
 
     switch (job.status) {
       case 'queued':
         if (job.queue_position !== undefined) {
-          const estimatedMinutes = job.queue_position * 8;
           await bot.sendMessage(
             chatId,
             `🎬 Generation Status: In Queue\n\n` +
             `${generateProgressBar(currentProgress)} ${currentProgress}%\n\n` +
             `📍 Queue Position: ${job.queue_position}\n` +
-            `⏱ Estimated wait: ${estimatedMinutes} minutes`
+            `⏱ Estimated wait: ${formatTimeRemaining(waitTimeSeconds)}`
           );
         }
         break;
@@ -96,7 +112,7 @@ async function checkJobStatus(jobId: string, chatId: number) {
           chatId,
           `🎬 Generation Status: Processing\n\n` +
           `${generateProgressBar(currentProgress)} ${currentProgress}%\n\n` +
-          `⏱ Please wait while your video is being generated...`
+          `⏱ Please wait while your video is being generated... (${formatTimeRemaining(waitTimeSeconds)} remaining)`
         );
         break;
 
@@ -203,7 +219,7 @@ bot.onText(/\/generate(?:\s+(.+))?/, async (msg, match) => {
     startProgressAnimation(jobId, chatId, 5);
 
     // Set up automatic status checking every 3 minutes
-    const interval = setInterval(() => checkJobStatus(jobId, chatId), 180000);
+    const interval = setInterval(() => checkJobStatus(jobId, chatId), 180000); // 3 minutes
     statusCheckers.set(jobId, interval);
 
     await bot.sendMessage(
