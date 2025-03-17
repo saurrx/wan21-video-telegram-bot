@@ -1,0 +1,65 @@
+[2025-03-17 16:28:53,382] INFO: 10.42.0.1 - - [17/Mar/2025 16:28:53] "POST /api/generate HTTP/1.1" 200 -
+[2025-03-17 16:28:53,382] INFO: Processing job d1c73c65-4af4-4db5-8d57-f568927a357a with prompt: create a random video
+[2025-03-17 16:28:53,382] INFO: Executing command: python generate.py --task t2v-1.3B --size 832*480 --ckpt_dir ./Wan2.1-T2V-1.3B --prompt create a random video --sample_steps 50 --sample_shift 5.0 --sample_guide_scale 6 --base_seed -1 --save_file outputs/d1c73c65-4af4-4db5-8d57-f568927a357a_20250317_162853.mp4 --use_prompt_extend --prompt_extend_method local_qwen --prompt_extend_target_lang en
+[2025-03-17 16:30:56,381] INFO: 10.42.0.1 - - [17/Mar/2025 16:30:56] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a HTTP/1.1" 200 -
+[2025-03-17 16:32:56,379] INFO: 10.42.0.1 - - [17/Mar/2025 16:32:56] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a HTTP/1.1" 200 -
+[2025-03-17 16:34:56,532] INFO: 10.42.0.1 - - [17/Mar/2025 16:34:56] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a HTTP/1.1" 200 -
+[2025-03-17 16:35:30,001] INFO: Generate.py output: [2025-03-17 16:28:56,787] INFO: offload_model is not specified, set to True.
+[2025-03-17 16:28:58,203] INFO: Generation job args: Namespace(task='t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='./Wan2.1-T2V-1.3B', offload_model=True, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='outputs/d1c73c65-4af4-4db5-8d57-f568927a357a_20250317_162853.mp4', prompt='create a random video', use_prompt_extend=True, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='en', base_seed=1260360151746226671, image=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=6.0)
+[2025-03-17 16:28:58,203] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2025-03-17 16:28:58,203] INFO: Input prompt: create a random video
+[2025-03-17 16:28:58,203] INFO: Extending prompt ...
+[2025-03-17 16:29:30,406] INFO: Extended prompt: Create a dynamic and engaging video featuring a diverse group of five friends from various racial backgrounds. They are enjoying a fun day at the beach. Each friend has a unique personality and style, with one wearing sunglasses and a hat, another with a colorful swimsuit, and so on. They are engaged in lively activities such as playing frisbee, building sandcastles, and splashing in the water. The video should capture their joyful expressions and interactions. Use bright and vibrant colors to enhance the sunny atmosphere. Include sweeping camera movements and close-ups to highlight the fun moments.
+[2025-03-17 16:29:30,406] INFO: Creating WanT2V pipeline.
+[2025-03-17 16:30:32,710] INFO: loading ./Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2025-03-17 16:30:45,779] INFO: loading ./Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2025-03-17 16:30:46,356] INFO: Creating WanModel from ./Wan2.1-T2V-1.3B
+[2025-03-17 16:30:49,548] INFO: Generating video ...
+[2025-03-17 16:35:23,745] INFO: Saving generated video to outputs/d1c73c65-4af4-4db5-8d57-f568927a357a_20250317_162853.mp4
+[2025-03-17 16:35:25,880] INFO: Finished.
+
+[2025-03-17 16:35:30,001] INFO: Job d1c73c65-4af4-4db5-8d57-f568927a357a completed successfully. Output saved to outputs/d1c73c65-4af4-4db5-8d57-f568927a357a_20250317_162853.mp4
+[2025-03-17 17:02:33,107] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:33] "GET /api/jobs HTTP/1.1" 200 -
+[2025-03-17 17:02:44,141] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:44] "GET /api/jobs HTTP/1.1" 200 -
+[2025-03-17 17:02:45,571] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:45] "GET /favicon.ico HTTP/1.1" 404 -
+[2025-03-17 17:02:53,509] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:53] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a/video HTTP/1.1" 200 -
+[2025-03-17 17:02:53,870] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:53] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a/video HTTP/1.1" 206 -
+[2025-03-17 17:02:54,975] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:54] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a/video HTTP/1.1" 206 -
+[2025-03-17 17:02:55,291] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:55] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a/video HTTP/1.1" 206 -
+[2025-03-17 17:02:55,815] INFO: 10.42.0.1 - - [17/Mar/2025 17:02:55] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a/video HTTP/1.1" 206 -
+[2025-03-17 17:04:02,001] INFO: 10.42.0.1 - - [17/Mar/2025 17:04:02] "GET /api/jobs/d1c73c65-4af4-4db5-8d57-f568927a357a/video HTTP/1.1" 200 -
+[2025-03-17 17:11:22,015] INFO: 10.42.0.1 - - [17/Mar/2025 17:11:22] "POST /api/generate HTTP/1.1" 200 -
+[2025-03-17 17:11:22,016] INFO: Processing job ada86248-c399-454b-8cfd-51f5f5bbdb58 with prompt: hot korean girl
+[2025-03-17 17:11:22,017] INFO: Executing command: python generate.py --task t2v-1.3B --size 832*480 --ckpt_dir ./Wan2.1-T2V-1.3B --prompt hot korean girl --sample_steps 50 --sample_shift 5.0 --sample_guide_scale 6 --base_seed -1 --save_file outputs/ada86248-c399-454b-8cfd-51f5f5bbdb58_20250317_171122.mp4 --use_prompt_extend --prompt_extend_method local_qwen --prompt_extend_target_lang en
+[2025-03-17 17:11:22,815] INFO: 10.42.0.1 - - [17/Mar/2025 17:11:22] "POST /api/generate HTTP/1.1" 200 -
+[2025-03-17 17:11:22,879] INFO: 10.42.0.1 - - [17/Mar/2025 17:11:22] "POST /api/generate HTTP/1.1" 200 -
+[2025-03-17 17:11:39,576] INFO: 10.42.0.1 - - [17/Mar/2025 17:11:39] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:11:59,562] INFO: 10.42.0.1 - - [17/Mar/2025 17:11:59] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:13:23,381] INFO: 10.42.0.1 - - [17/Mar/2025 17:13:23] "GET /api/jobs/1f30fc0a-b70b-4a58-8aaa-fec498e1d775 HTTP/1.1" 200 -
+[2025-03-17 17:13:23,396] INFO: 10.42.0.1 - - [17/Mar/2025 17:13:23] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:13:34,071] INFO: 10.42.0.1 - - [17/Mar/2025 17:13:34] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:13:50,823] INFO: 10.42.0.1 - - [17/Mar/2025 17:13:50] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:15:23,321] INFO: 10.42.0.1 - - [17/Mar/2025 17:15:23] "GET /api/jobs/1f30fc0a-b70b-4a58-8aaa-fec498e1d775 HTTP/1.1" 200 -
+[2025-03-17 17:15:23,364] INFO: 10.42.0.1 - - [17/Mar/2025 17:15:23] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:17:23,322] INFO: 10.42.0.1 - - [17/Mar/2025 17:17:23] "GET /api/jobs/1f30fc0a-b70b-4a58-8aaa-fec498e1d775 HTTP/1.1" 200 -
+[2025-03-17 17:17:23,450] INFO: 10.42.0.1 - - [17/Mar/2025 17:17:23] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:18:02,919] INFO: Generate.py output: [2025-03-17 17:11:25,820] INFO: offload_model is not specified, set to True.
+[2025-03-17 17:11:27,471] INFO: Generation job args: Namespace(task='t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='./Wan2.1-T2V-1.3B', offload_model=True, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='outputs/ada86248-c399-454b-8cfd-51f5f5bbdb58_20250317_171122.mp4', prompt='hot korean girl', use_prompt_extend=True, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='en', base_seed=6447152468949148163, image=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=6.0)
+[2025-03-17 17:11:27,471] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2025-03-17 17:11:27,471] INFO: Input prompt: hot korean girl
+[2025-03-17 17:11:27,471] INFO: Extending prompt ...
+[2025-03-17 17:12:03,909] INFO: Extended prompt: A vibrant, energetic Korean woman with long wavy black hair and a radiant smile. She wears a fitted, pastel pink blouse and a pleated midi skirt, complemented by stylish sunglasses and ankle boots. Her makeup is subtle yet accentuates her features beautifully. She moves confidently down a bustling city street filled with neon lights and passerby, capturing the lively spirit of Seoul. The camera follows her with smooth tracking shots from a medium distance, showcasing her dynamic presence and the urban environment around her.
+[2025-03-17 17:12:03,910] INFO: Creating WanT2V pipeline.
+[2025-03-17 17:13:05,320] INFO: loading ./Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2025-03-17 17:13:18,119] INFO: loading ./Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2025-03-17 17:13:18,708] INFO: Creating WanModel from ./Wan2.1-T2V-1.3B
+[2025-03-17 17:13:22,393] INFO: Generating video ...
+[2025-03-17 17:17:56,612] INFO: Saving generated video to outputs/ada86248-c399-454b-8cfd-51f5f5bbdb58_20250317_171122.mp4
+[2025-03-17 17:17:58,736] INFO: Finished.
+
+[2025-03-17 17:18:02,920] INFO: Job ada86248-c399-454b-8cfd-51f5f5bbdb58 completed successfully. Output saved to outputs/ada86248-c399-454b-8cfd-51f5f5bbdb58_20250317_171122.mp4
+[2025-03-17 17:18:02,920] INFO: Processing job 1f30fc0a-b70b-4a58-8aaa-fec498e1d775 with prompt: hot korean girl
+[2025-03-17 17:18:02,920] INFO: Executing command: python generate.py --task t2v-1.3B --size 832*480 --ckpt_dir ./Wan2.1-T2V-1.3B --prompt hot korean girl --sample_steps 50 --sample_shift 5.0 --sample_guide_scale 6 --base_seed -1 --save_file outputs/1f30fc0a-b70b-4a58-8aaa-fec498e1d775_20250317_171802.mp4 --use_prompt_extend --prompt_extend_method local_qwen --prompt_extend_target_lang en
+[2025-03-17 17:18:17,562] INFO: 10.42.0.1 - - [17/Mar/2025 17:18:17] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
+[2025-03-17 17:19:23,322] INFO: 10.42.0.1 - - [17/Mar/2025 17:19:23] "GET /api/jobs/1f30fc0a-b70b-4a58-8aaa-fec498e1d775 HTTP/1.1" 200 -
+[2025-03-17 17:19:23,362] INFO: 10.42.0.1 - - [17/Mar/2025 17:19:23] "GET /api/jobs/3890e66d-0d31-404f-97a1-43fbcd3d2c0b HTTP/1.1" 200 -
