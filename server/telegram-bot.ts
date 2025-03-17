@@ -1,12 +1,38 @@
 import TelegramBot from 'node-telegram-bot-api';
 
+// Validate video URL format and accessibility
+async function validateVideoUrl(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      timeout: 5000
+    });
+
+    if (!response.ok) {
+      console.error(`Invalid video URL response: ${response.status} ${response.statusText}`);
+      return false;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('video')) {
+      console.error(`Invalid content type: ${contentType}`);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error validating video URL:', error);
+    return false;
+  }
+}
+
 // Initialize bot with token
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) {
   throw new Error('TELEGRAM_BOT_TOKEN is not set in environment variables');
 }
 
-const bot = new TelegramBot(token, { 
+const bot = new TelegramBot(token, {
   polling: true,
   // Add configurations to handle polling better
   webHook: false, // Explicitly disable webhooks
@@ -95,6 +121,17 @@ async function checkJobStatus(jobId: string, chatId: number) {
         const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
         console.log('Video URL:', videoUrl); // Debug log
 
+        // Validate video URL before proceeding
+        const isVideoValid = await validateVideoUrl(videoUrl);
+        if (!isVideoValid) {
+          await bot.sendMessage(
+            chatId,
+            `❌ Error: Video is not ready yet. Please try again in a few moments.\n\nYou can try downloading directly from:\n${videoUrl}`
+          );
+          // Don't cleanup yet, let the next check retry
+          return;
+        }
+
         await bot.sendMessage(
           chatId,
           `🎬 Generation Status: Completed!\n\n` +
@@ -105,29 +142,45 @@ async function checkJobStatus(jobId: string, chatId: number) {
         // Send the video file
         try {
           console.log('Fetching video from:', videoUrl); // Debug log
-          const videoResponse = await fetch(videoUrl);
+          const videoResponse = await fetch(videoUrl, {
+            timeout: 30000 // 30 second timeout
+          });
+
           if (!videoResponse.ok) {
-            throw new Error(`Failed to fetch video: ${videoResponse.status}`);
+            throw new Error(`Failed to fetch video: ${videoResponse.status} ${videoResponse.statusText}`);
           }
 
-          console.log('Video response received, converting to buffer...'); // Debug log
-          const buffer = await videoResponse.arrayBuffer();
-          console.log('Sending video to Telegram...'); // Debug log
+          const contentType = videoResponse.headers.get('content-type');
+          const contentLength = videoResponse.headers.get('content-length');
+          console.log(`Video response received - Type: ${contentType}, Size: ${contentLength} bytes`); // Debug log
 
+          if (!contentType?.includes('video')) {
+            throw new Error(`Invalid content type: ${contentType}`);
+          }
+
+          console.log('Converting video response to buffer...'); // Debug log
+          const buffer = await videoResponse.arrayBuffer();
+          console.log(`Buffer size: ${buffer.byteLength} bytes`); // Debug log
+
+          console.log('Sending video to Telegram...'); // Debug log
           await bot.sendVideo(chatId, Buffer.from(buffer), {
-            caption: 'Here is your generated video!'
+            caption: 'Here is your generated video!',
+            filename: `generated_video_${jobId}.mp4`
           });
 
           console.log('Video sent successfully!'); // Debug log
         } catch (videoError) {
           console.error('Error sending video:', videoError);
-          await bot.sendMessage(chatId, '❌ Error sending video file. Please use the URL above to download your video.');
+          await bot.sendMessage(
+            chatId,
+            `❌ Error sending video file.\n\nYou can download your video using this link:\n${videoUrl}\n\nError details: ${videoError.message}`
+          );
+        } finally {
+          // Cleanup regardless of success or failure
+          clearInterval(statusCheckers.get(jobId));
+          statusCheckers.delete(jobId);
+          userJobs.delete(chatId);
         }
-
-        // Cleanup
-        clearInterval(statusCheckers.get(jobId));
-        statusCheckers.delete(jobId);
-        userJobs.delete(chatId);
         break;
       case 'failed':
         await bot.sendMessage(
