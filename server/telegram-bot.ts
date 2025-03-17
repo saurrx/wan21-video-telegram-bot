@@ -1,5 +1,16 @@
 import TelegramBot from 'node-telegram-bot-api';
 
+// Store user's active jobs
+const userJobs = new Map<number, string>();
+// Store status check intervals
+const statusCheckers = new Map<string, NodeJS.Timer>();
+// Store progress animation intervals
+const progressAnimations = new Map<string, { 
+  interval: NodeJS.Timer;
+  currentProgress: number;
+  lastMessage?: number;
+}>();
+
 // Validate video URL format and accessibility
 async function validateVideoUrl(url: string): Promise<boolean> {
   try {
@@ -26,29 +37,6 @@ async function validateVideoUrl(url: string): Promise<boolean> {
   }
 }
 
-// Initialize bot with token
-const token = process.env.TELEGRAM_BOT_TOKEN;
-if (!token) {
-  throw new Error('TELEGRAM_BOT_TOKEN is not set in environment variables');
-}
-
-const bot = new TelegramBot(token, {
-  polling: true,
-  // Add configurations to handle polling better
-  webHook: false, // Explicitly disable webhooks
-  testEnvironment: false, // Not a test environment
-  interval: 300, // Poll every 300ms (use interval instead of polling_interval)
-  onlyFirstMatch: true, // Stop after first match
-});
-
-// Base URL for the API
-const API_BASE_URL = 'http://provider.gpufarm.xyz:30507';
-
-// Store user's active jobs
-const userJobs = new Map<number, string>();
-// Store status check intervals
-const statusCheckers = new Map<string, NodeJS.Timer>();
-
 // Generate progress bar
 function generateProgressBar(percentage: number): string {
   const length = 20;
@@ -57,8 +45,8 @@ function generateProgressBar(percentage: number): string {
   return '▓'.repeat(filled) + '░'.repeat(empty);
 }
 
-// Calculate progress percentage based on status
-function getProgressPercentage(status: string, queuePosition: number | undefined, startTime?: number): number {
+// Calculate base progress percentage based on status
+function getBaseProgressPercentage(status: string, queuePosition: number | undefined, startTime?: number): number {
   switch (status) {
     case 'queued':
       return queuePosition ? Math.max(5, 20 - (queuePosition * 2)) : 5;
@@ -73,11 +61,65 @@ function getProgressPercentage(status: string, queuePosition: number | undefined
   }
 }
 
-// Handle start command
-bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Welcome to Wan2.1 Video Generation Bot!\n\nSend me a text prompt to generate a video.\nUse /status to check your video generation progress.');
+// Start smooth progress animation
+function startProgressAnimation(jobId: string, chatId: number, initialProgress: number) {
+  // Clear existing animation if any
+  if (progressAnimations.has(jobId)) {
+    clearInterval(progressAnimations.get(jobId)?.interval);
+  }
+
+  const animation = {
+    interval: setInterval(async () => {
+      const progress = progressAnimations.get(jobId);
+      if (!progress) return;
+
+      // Increment progress by 1%
+      progress.currentProgress = Math.min(99, progress.currentProgress + 1);
+
+      // Only send update every 5% to avoid spam
+      if (!progress.lastMessage || Date.now() - progress.lastMessage >= 5000) {
+        const progressBar = generateProgressBar(progress.currentProgress);
+        await bot.sendMessage(
+          chatId,
+          `🎬 Generation Status: Processing\n\n` +
+          `${progressBar} ${progress.currentProgress}%\n\n` +
+          `⏱ Please wait while your video is being generated...`
+        );
+        progress.lastMessage = Date.now();
+      }
+    }, 1000), // Update every second
+    currentProgress: initialProgress,
+    lastMessage: Date.now()
+  };
+
+  progressAnimations.set(jobId, animation);
+}
+
+// Stop and cleanup progress animation
+function stopProgressAnimation(jobId: string) {
+  const animation = progressAnimations.get(jobId);
+  if (animation) {
+    clearInterval(animation.interval);
+    progressAnimations.delete(jobId);
+  }
+}
+
+// Initialize bot with token
+const token = process.env.TELEGRAM_BOT_TOKEN;
+if (!token) {
+  throw new Error('TELEGRAM_BOT_TOKEN is not set in environment variables');
+}
+
+const bot = new TelegramBot(token, {
+  polling: true,
+  webHook: false,
+  testEnvironment: false,
+  interval: 300,
+  onlyFirstMatch: true,
 });
+
+// Base URL for the API
+const API_BASE_URL = 'http://provider.gpufarm.xyz:30507';
 
 // Function to check job status
 async function checkJobStatus(jobId: string, chatId: number) {
@@ -90,10 +132,9 @@ async function checkJobStatus(jobId: string, chatId: number) {
 
     switch (job.status) {
       case 'queued':
-        // Only send queue updates if position changed significantly
         if (job.queue_position !== undefined) {
-          const estimatedMinutes = job.queue_position * 8; // ~8 mins per job
-          const progress = getProgressPercentage('queued', job.queue_position);
+          const estimatedMinutes = job.queue_position * 8;
+          const progress = getBaseProgressPercentage('queued', job.queue_position);
           const progressBar = generateProgressBar(progress);
 
           await bot.sendMessage(
@@ -103,35 +144,31 @@ async function checkJobStatus(jobId: string, chatId: number) {
             `📍 Queue Position: ${job.queue_position}\n` +
             `⏱ Estimated wait: ${estimatedMinutes} minutes`
           );
+
+          // Start progress animation from queue position
+          startProgressAnimation(jobId, chatId, progress);
         }
         break;
+
       case 'processing':
-        const progress = getProgressPercentage('processing', undefined, job.started_at ? new Date(job.started_at).getTime() : undefined);
-        const progressBar = generateProgressBar(progress);
-
-        await bot.sendMessage(
-          chatId,
-          `🎬 Generation Status: Processing\n\n` +
-          `${progressBar} ${progress}%\n\n` +
-          `⏱ Estimated time remaining: ${Math.ceil((90 - progress) / 6.5)} minutes`
-        );
-        break;
-      case 'completed':
-        // Send final progress and video
-        const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
-        console.log('Video URL:', videoUrl); // Debug log
-
-        // Validate video URL before proceeding
-        const isVideoValid = await validateVideoUrl(videoUrl);
-        if (!isVideoValid) {
-          await bot.sendMessage(
-            chatId,
-            `❌ Error: Video is not ready yet. Please try again in a few moments.\n\nYou can try downloading directly from:\n${videoUrl}`
-          );
-          // Don't cleanup yet, let the next check retry
-          return;
+        const progress = getBaseProgressPercentage('processing', undefined, job.started_at ? new Date(job.started_at).getTime() : undefined);
+        // Update animation with new base progress
+        const animation = progressAnimations.get(jobId);
+        if (animation) {
+          animation.currentProgress = Math.max(animation.currentProgress, progress);
+        } else {
+          startProgressAnimation(jobId, chatId, progress);
         }
+        break;
 
+      case 'completed':
+        // Stop animation and show 100%
+        stopProgressAnimation(jobId);
+
+        const videoUrl = `${API_BASE_URL}/api/jobs/${jobId}/video`;
+        console.log('Video URL:', videoUrl);
+
+        // Show 100% completion
         await bot.sendMessage(
           chatId,
           `🎬 Generation Status: Completed!\n\n` +
@@ -139,11 +176,20 @@ async function checkJobStatus(jobId: string, chatId: number) {
           `🎥 Video URL: ${videoUrl}\n\nSending the video file now...`
         );
 
-        // Send the video file
+        // Validate and send video
+        const isVideoValid = await validateVideoUrl(videoUrl);
+        if (!isVideoValid) {
+          await bot.sendMessage(
+            chatId,
+            `❌ Error: Video is not ready yet. Please try again in a few moments.\n\nYou can try downloading directly from:\n${videoUrl}`
+          );
+          return;
+        }
+
         try {
-          console.log('Fetching video from:', videoUrl); // Debug log
+          console.log('Fetching video from:', videoUrl);
           const videoResponse = await fetch(videoUrl, {
-            timeout: 30000 // 30 second timeout
+            timeout: 30000
           });
 
           if (!videoResponse.ok) {
@@ -152,23 +198,23 @@ async function checkJobStatus(jobId: string, chatId: number) {
 
           const contentType = videoResponse.headers.get('content-type');
           const contentLength = videoResponse.headers.get('content-length');
-          console.log(`Video response received - Type: ${contentType}, Size: ${contentLength} bytes`); // Debug log
+          console.log(`Video response received - Type: ${contentType}, Size: ${contentLength} bytes`);
 
           if (!contentType?.includes('video')) {
             throw new Error(`Invalid content type: ${contentType}`);
           }
 
-          console.log('Converting video response to buffer...'); // Debug log
+          console.log('Converting video response to buffer...');
           const buffer = await videoResponse.arrayBuffer();
-          console.log(`Buffer size: ${buffer.byteLength} bytes`); // Debug log
+          console.log(`Buffer size: ${buffer.byteLength} bytes`);
 
-          console.log('Sending video to Telegram...'); // Debug log
+          console.log('Sending video to Telegram...');
           await bot.sendVideo(chatId, Buffer.from(buffer), {
             caption: 'Here is your generated video!',
             filename: `generated_video_${jobId}.mp4`
           });
 
-          console.log('Video sent successfully!'); // Debug log
+          console.log('Video sent successfully!');
         } catch (videoError) {
           console.error('Error sending video:', videoError);
           await bot.sendMessage(
@@ -176,17 +222,22 @@ async function checkJobStatus(jobId: string, chatId: number) {
             `❌ Error sending video file.\n\nYou can download your video using this link:\n${videoUrl}\n\nError details: ${videoError.message}`
           );
         } finally {
-          // Cleanup regardless of success or failure
+          // Cleanup
           clearInterval(statusCheckers.get(jobId));
           statusCheckers.delete(jobId);
           userJobs.delete(chatId);
         }
         break;
+
       case 'failed':
+        // Stop animation and show error
+        stopProgressAnimation(jobId);
+
         await bot.sendMessage(
           chatId,
           `❌ Generation Status: Failed\n\n${generateProgressBar(0)} 0%\n\nPlease try again.`
         );
+
         // Cleanup
         clearInterval(statusCheckers.get(jobId));
         statusCheckers.delete(jobId);
@@ -195,13 +246,17 @@ async function checkJobStatus(jobId: string, chatId: number) {
     }
   } catch (error) {
     console.error('Error checking status:', error);
-    // Don't send error message to user for every failed status check
-    // Only send if it's a critical error
     if (error instanceof Error && error.message.includes('Failed to fetch')) {
       await bot.sendMessage(chatId, '❌ Error checking status. Please try again later.');
     }
   }
 }
+
+// Handle start command
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, 'Welcome to Wan2.1 Video Generation Bot!\n\nSend me a text prompt to generate a video.\nUse /status to check your video generation progress.');
+});
 
 // Handle status command (manual check)
 bot.onText(/\/status/, async (msg) => {
@@ -218,7 +273,7 @@ bot.onText(/\/status/, async (msg) => {
 
 // Handle text messages (prompts)
 bot.on('message', async (msg) => {
-  if (msg.text?.startsWith('/')) return; // Ignore commands
+  if (msg.text?.startsWith('/')) return;
 
   const chatId = msg.chat.id;
   const prompt = msg.text;
@@ -233,7 +288,7 @@ bot.on('message', async (msg) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
-        size: '832*480', // Default size
+        size: '832*480',
         sample_steps: 50,
         guide_scale: 6.0,
         use_prompt_extend: true,
@@ -250,15 +305,17 @@ bot.on('message', async (msg) => {
     userJobs.set(chatId, jobId);
 
     // Set up automatic status checking every 2 minutes
-    const interval = setInterval(() => checkJobStatus(jobId, chatId), 120000); // 2 minutes
+    const interval = setInterval(() => checkJobStatus(jobId, chatId), 120000);
     statusCheckers.set(jobId, interval);
 
-    // Show initial progress bar
+    // Start progress animation from 5%
+    startProgressAnimation(jobId, chatId, 5);
+
     await bot.sendMessage(
       chatId,
       `✅ Video generation started!\n\n` +
       `${generateProgressBar(5)} 5%\n\n` +
-      `I will send you progress updates every 2 minutes.\n` +
+      `I will send you progress updates.\n` +
       `You can also use /status to check progress anytime.`
     );
   } catch (error) {
@@ -272,7 +329,6 @@ bot.on('message', async (msg) => {
 
 // Handle polling errors
 bot.on('polling_error', (error) => {
-  // Log the error but don't crash
   console.error('Telegram bot polling error:', error);
 });
 
@@ -281,6 +337,9 @@ process.on('SIGINT', () => {
   // Clear all intervals
   for (const interval of statusCheckers.values()) {
     clearInterval(interval);
+  }
+  for (const animation of progressAnimations.values()) {
+    clearInterval(animation.interval);
   }
   bot.stopPolling();
   process.exit(0);
