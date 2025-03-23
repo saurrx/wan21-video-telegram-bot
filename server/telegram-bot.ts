@@ -197,10 +197,24 @@ async function checkJobStatus(jobId: string, chatId: number) {
   }
 }
 
+// Handle direct messages (ignore plain text messages now that we use /generate)
+bot.on('message', (msg) => {
+  if (msg.text?.startsWith('/')) return; // Ignore commands
+
+  // For non-command messages, inform about using /generate
+  const chatId = msg.chat.id;
+  bot.sendMessage(
+    chatId,
+    'Please use the /generate command followed by your prompt.\n' +
+    'Example: /generate a beautiful sunset'
+  );
+});
+
 // Handle /start command
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 
+  bot.sendMessage(
+    chatId, 
     'Welcome to Wan2.1 Video Generation Bot!\n\n' +
     'Commands:\n' +
     '/generate <prompt> - Generate a video with your prompt\n' +
@@ -214,7 +228,11 @@ bot.onText(/\/generate(?:\s+(.+))?/, async (msg, match) => {
   const prompt = match?.[1]?.trim();
 
   if (!prompt) {
-    bot.sendMessage(chatId, 'Please provide a prompt after /generate command.\nExample: /generate a beautiful sunset');
+    bot.sendMessage(
+      chatId,
+      'Please provide a prompt after /generate command.\n' +
+      'Example: /generate a beautiful sunset'
+    );
     return;
   }
 
